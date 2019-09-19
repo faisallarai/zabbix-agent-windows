@@ -1,0 +1,65 @@
+---
+- name: Copy files/* to C:\Windows\Temp
+  win_copy:
+    src: files/
+    dest: C:\Windows\Temp\
+
+- name: Install Chocolatey
+  raw: Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+- name: Copy hosts file to etc folder
+  win_copy:
+    src: hosts
+    dest: C:\Windows\System32\drivers\etc\
+
+- name: Create template config file from template
+  win_template:
+    src: templates/zabbix_agentd.j2
+    dest: C:\ProgramData\zabbix\zabbix_agentd.conf
+
+- name: Install Python
+  win_chocolatey:
+    name: python
+    state: present
+
+- name: Install Zabbix Agent
+  win_chocolatey:
+    name: zabbix-agent
+    state: present
+
+- name: Restart Zabbix Agent service
+  win_service:
+    name: Zabbix Agent
+    state: restarted
+  changed_when: False
+
+- name: Set Zabbix Agent service startup mode to auto and ensure it is started
+  win_service:
+    name: Zabbix Agent
+    start_mode: auto
+    state: started
+
+- name: Firewall rule to allow Zabbix Agent on TCP port 10050
+  win_firewall_rule:
+    name: Zabbix Agent Port
+    localport: 10050
+    action: allow
+    direction: in
+    protocol: tcp
+    state: present
+    enabled: yes
+
+- name: Firewall rule to allow RDP on TCP port 3389
+  win_firewall_rule:
+    name: Remote Desktop
+    localport: 3389
+    action: allow
+    direction: in
+    protocol: tcp
+    profiles: private
+    state: present
+    enabled: yes
+
+- name: Reboot to apply changes 
+  win_reboot:
+    reboot_timeout: 3600
